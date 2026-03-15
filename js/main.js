@@ -250,11 +250,51 @@ function initScrollReveal() {
 }
 
 
+function parseProductImageUrls(rawValue) {
+    if (Array.isArray(rawValue)) {
+        return rawValue.filter(Boolean).slice(0, 5);
+    }
+
+    if (typeof rawValue === 'string') {
+        const trimmed = rawValue.trim();
+        if (!trimmed) return [];
+
+        const parseCandidates = [trimmed];
+        if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+            parseCandidates.push(trimmed.slice(1, -1));
+        }
+
+        for (const candidate of parseCandidates) {
+            if (!candidate) continue;
+            if (candidate.startsWith('[')) {
+                try {
+                    const parsed = JSON.parse(candidate);
+                    if (Array.isArray(parsed)) return parsed.filter(Boolean).slice(0, 5);
+                } catch (error) {
+                    // keep trying other formats
+                }
+            }
+        }
+
+        if (trimmed.includes(',')) {
+            const splitValues = trimmed.split(',').map((value) => value.trim()).filter(Boolean);
+            if (splitValues.length > 1) return splitValues.slice(0, 5);
+        }
+
+        return [trimmed].slice(0, 5);
+    }
+
+    return [];
+}
+
+function getProductImageList(product) {
+    const imageList = parseProductImageUrls(product?.product_image_urls);
+    if (imageList.length > 0) return imageList;
+    return parseProductImageUrls(product?.product_image_url);
+}
+
 function getProductPrimaryImage(product) {
-    const imageList = Array.isArray(product?.product_image_urls)
-        ? product.product_image_urls.filter(Boolean)
-        : [];
-    return imageList[0] || product.product_image_url || 'assets/images/placeholder.svg';
+    return getProductImageList(product)[0] || 'assets/images/placeholder.svg';
 }
 
 function getProductDetailsUrl(productId) {
@@ -269,6 +309,7 @@ function createProductCard(product) {
     const discount = calculateDiscount(product.main_price, product.discount_price);
     const finalPrice = product.discount_price || product.main_price;
     const hasColors = product.colour_options && product.colour_options.length > 0;
+    const productImages = getProductImageList(product);
     
     return `
         <div class="product-card" data-id="${product.id}">
@@ -287,6 +328,14 @@ function createProductCard(product) {
                             <span class="color-dot" style="background-color: ${color};" title="${getColorName(color)}"></span>
                         `).join('')}
                         ${product.colour_options.length > 4 ? `<span class="color-dot" style="background: linear-gradient(45deg, #ccc, #fff);">+</span>` : ''}
+                    </div>
+                ` : ''}
+
+                ${productImages.length > 1 ? `
+                    <div style="display:flex; gap:6px; padding:8px; justify-content:center; flex-wrap:wrap; background: rgba(255,255,255,0.92); border-top:1px solid rgba(0,0,0,0.05);">
+                        ${productImages.slice(0, 5).map((img, index) => `
+                            <img src="${img}" alt="${product.product_name} ${index + 1}" style="width:34px; height:34px; border-radius:6px; object-fit:cover; border:1px solid #e5e7eb;" onerror="this.style.display='none'">
+                        `).join('')}
                     </div>
                 ` : ''}
             </div>

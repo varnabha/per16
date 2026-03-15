@@ -375,12 +375,49 @@ function getStockBadgeClass(stock) {
 }
 
 
-function getProductImages(product) {
-    if (Array.isArray(product?.product_image_urls) && product.product_image_urls.length > 0) {
-        return product.product_image_urls.filter(Boolean);
+function normalizeImageUrls(rawValue) {
+    if (Array.isArray(rawValue)) {
+        return rawValue.filter(Boolean).slice(0, 5);
     }
-    if (product?.product_image_url) return [product.product_image_url];
+
+    if (typeof rawValue === 'string') {
+        const trimmed = rawValue.trim();
+        if (!trimmed) return [];
+
+        const parseCandidates = [trimmed];
+        if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+            parseCandidates.push(trimmed.slice(1, -1));
+        }
+
+        for (const candidate of parseCandidates) {
+            if (!candidate) continue;
+            if (candidate.startsWith('[')) {
+                try {
+                    const parsed = JSON.parse(candidate);
+                    if (Array.isArray(parsed)) {
+                        return parsed.filter(Boolean).slice(0, 5);
+                    }
+                } catch (error) {
+                    // keep trying fallbacks
+                }
+            }
+        }
+
+        if (trimmed.includes(',')) {
+            const splitValues = trimmed.split(',').map((value) => value.trim()).filter(Boolean);
+            if (splitValues.length > 1) return splitValues.slice(0, 5);
+        }
+
+        return [trimmed].slice(0, 5);
+    }
+
     return [];
+}
+
+function getProductImages(product) {
+    const fromCollection = normalizeImageUrls(product?.product_image_urls);
+    if (fromCollection.length > 0) return fromCollection;
+    return normalizeImageUrls(product?.product_image_url);
 }
 
 function getPrimaryProductImage(product) {
@@ -396,7 +433,7 @@ function renderImagePreviewFiles(previewEl, files = []) {
 
     previewEl.innerHTML = files.map((file) => {
         const url = URL.createObjectURL(file);
-        return `<img src="${url}" alt="Preview" style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px; margin-right: 8px;">`;
+        return `<img src="${url}" alt="Preview" class="multi-image-preview">`;
     }).join('');
 }
 
@@ -414,6 +451,19 @@ async function uploadProductImages(imageFiles = []) {
     }
 
     return { imageUrls: uploaded, skipped };
+}
+
+function combineProductImages(existingImages = [], newlyUploadedImages = []) {
+    const cleanExisting = [...new Set((existingImages || []).filter(Boolean))];
+    const cleanNew = [...new Set((newlyUploadedImages || []).filter(Boolean))];
+
+    if (cleanNew.length === 0) {
+        return cleanExisting.slice(0, 5);
+    }
+
+    // Keep newest uploads visible: when total exceeds 5, drop oldest existing images first.
+    const merged = [...cleanExisting, ...cleanNew];
+    return [...new Set(merged)].slice(-5);
 }
 
 
@@ -678,15 +728,17 @@ function initEditProductForm() {
             // Upload new images if selected (up to 5)
             const imageFiles = imageInput ? imageInput.files : [];
             const uploadResult = await uploadProductImages(imageFiles);
-            if (uploadResult.imageUrls.length > 0) {
-                productData.product_image_urls = uploadResult.imageUrls;
-                productData.product_image_url = uploadResult.imageUrls[0];
+
+            if (uploadResult.imageUrls.length > 0 || existingImages.length > 0) {
+                const nextImages = combineProductImages(existingImages, uploadResult.imageUrls);
+                productData.product_image_urls = nextImages;
+                productData.product_image_url = nextImages[0] || '';
             }
 
             // Update product
             const updatedProduct = await appwriteDB.updateProduct(productId, productData);
 
-            if (uploadResult.imageUrls.length > 0) {
+            if (uploadResult.imageUrls.length > 0 && existingImages.length >= 5) {
                 const nextImages = getProductImages(updatedProduct);
                 const imagesToDelete = existingImages.filter((url) => !nextImages.includes(url));
                 await appwriteDB.deleteImagesByUrls(imagesToDelete);
@@ -753,7 +805,7 @@ async function editProduct(id) {
         if (currentImageDiv) {
             const currentImages = getProductImages(product);
             if (currentImages.length > 0) {
-                currentImageDiv.innerHTML = currentImages.map((url) => `<img src="${url}" alt="Current" style="width: 72px; height: 72px; object-fit: cover; border-radius: 8px; margin-right: 8px;">`).join('');
+                currentImageDiv.innerHTML = currentImages.map((url) => `<img src="${url}" alt="Current" class="multi-image-preview">`).join('');
             } else {
                 currentImageDiv.innerHTML = '<p>No image</p>';
             }

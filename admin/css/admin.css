@@ -598,23 +598,21 @@ body {
 }
 
 /* Image Preview */
-.image-preview {
-    margin-top: 1rem;
-    max-width: 200px;
-}
-
-.image-preview img {
-    width: 100%;
-    border-radius: var(--radius);
-}
-
+.image-preview,
 .current-image {
-    margin-top: 0.5rem;
+    margin-top: 0.75rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
 }
 
-.current-image img {
-    max-width: 150px;
-    border-radius: var(--radius);
+.multi-image-preview {
+    width: 74px;
+    height: 74px;
+    object-fit: cover;
+    border-radius: 10px;
+    border: 1px solid #e5e7eb;
+    background: #fff;
 }
 
 /* Category Bars */
