@@ -383,6 +383,12 @@ function getProductImages(product) {
     return [];
 }
 
+function getProductImages(product) {
+    const fromCollection = normalizeImageUrls(product?.product_image_urls);
+    if (fromCollection.length > 0) return fromCollection;
+    return normalizeImageUrls(product?.product_image_url);
+}
+
 function getPrimaryProductImage(product) {
     return getProductImages(product)[0] || '../assets/images/placeholder.jpg';
 }
@@ -396,7 +402,7 @@ function renderImagePreviewFiles(previewEl, files = []) {
 
     previewEl.innerHTML = files.map((file) => {
         const url = URL.createObjectURL(file);
-        return `<img src="${url}" alt="Preview" style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px; margin-right: 8px;">`;
+        return `<img src="${url}" alt="Preview" class="multi-image-preview">`;
     }).join('');
 }
 
@@ -768,7 +774,7 @@ async function editProduct(id) {
         if (currentImageDiv) {
             const currentImages = getProductImages(product);
             if (currentImages.length > 0) {
-                currentImageDiv.innerHTML = currentImages.map((url) => `<img src="${url}" alt="Current" style="width: 72px; height: 72px; object-fit: cover; border-radius: 8px; margin-right: 8px;">`).join('');
+                currentImageDiv.innerHTML = currentImages.map((url) => `<img src="${url}" alt="Current" class="multi-image-preview">`).join('');
             } else {
                 currentImageDiv.innerHTML = '<p>No image</p>';
             }
