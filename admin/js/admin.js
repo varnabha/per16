@@ -377,9 +377,9 @@ function getStockBadgeClass(stock) {
 
 function getProductImages(product) {
     if (Array.isArray(product?.product_image_urls) && product.product_image_urls.length > 0) {
-        return product.product_image_urls.filter(Boolean);
+        return product.product_image_urls.filter(Boolean).slice(0, 5);
     }
-    if (product?.product_image_url) return [product.product_image_url];
+    if (product?.product_image_url) return [product.product_image_url].slice(0, 5);
     return [];
 }
 
@@ -414,6 +414,19 @@ async function uploadProductImages(imageFiles = []) {
     }
 
     return { imageUrls: uploaded, skipped };
+}
+
+function combineProductImages(existingImages = [], newlyUploadedImages = []) {
+    const cleanExisting = [...new Set((existingImages || []).filter(Boolean))];
+    const cleanNew = [...new Set((newlyUploadedImages || []).filter(Boolean))];
+
+    if (cleanNew.length === 0) {
+        return cleanExisting.slice(0, 5);
+    }
+
+    // Keep newest uploads visible: when total exceeds 5, drop oldest existing images first.
+    const merged = [...cleanExisting, ...cleanNew];
+    return [...new Set(merged)].slice(-5);
 }
 
 
@@ -678,15 +691,17 @@ function initEditProductForm() {
             // Upload new images if selected (up to 5)
             const imageFiles = imageInput ? imageInput.files : [];
             const uploadResult = await uploadProductImages(imageFiles);
-            if (uploadResult.imageUrls.length > 0) {
-                productData.product_image_urls = uploadResult.imageUrls;
-                productData.product_image_url = uploadResult.imageUrls[0];
+
+            if (uploadResult.imageUrls.length > 0 || existingImages.length > 0) {
+                const nextImages = combineProductImages(existingImages, uploadResult.imageUrls);
+                productData.product_image_urls = nextImages;
+                productData.product_image_url = nextImages[0] || '';
             }
 
             // Update product
             const updatedProduct = await appwriteDB.updateProduct(productId, productData);
 
-            if (uploadResult.imageUrls.length > 0) {
+            if (uploadResult.imageUrls.length > 0 && existingImages.length >= 5) {
                 const nextImages = getProductImages(updatedProduct);
                 const imagesToDelete = existingImages.filter((url) => !nextImages.includes(url));
                 await appwriteDB.deleteImagesByUrls(imagesToDelete);
