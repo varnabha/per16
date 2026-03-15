@@ -711,28 +711,16 @@ class AppwriteDB {
             const trimmed = rawValue.trim();
             if (!trimmed) return [];
 
-            const parseCandidates = [trimmed];
-            if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
-                parseCandidates.push(trimmed.slice(1, -1));
-            }
-
-            for (const candidate of parseCandidates) {
-                if (!candidate) continue;
-                if (candidate.startsWith('[')) {
-                    try {
-                        const parsed = JSON.parse(candidate);
-                        if (Array.isArray(parsed)) {
-                            return parsed.filter(Boolean).slice(0, 5);
-                        }
-                    } catch (error) {
-                        // keep trying other fallbacks
+            // Some records may store arrays as JSON strings.
+            if (trimmed.startsWith('[')) {
+                try {
+                    const parsed = JSON.parse(trimmed);
+                    if (Array.isArray(parsed)) {
+                        return parsed.filter(Boolean).slice(0, 5);
                     }
+                } catch (error) {
+                    // fall through and treat as single URL
                 }
-            }
-
-            if (trimmed.includes(',')) {
-                const splitValues = trimmed.split(',').map((value) => value.trim()).filter(Boolean);
-                if (splitValues.length > 1) return splitValues.slice(0, 5);
             }
 
             return [trimmed].slice(0, 5);

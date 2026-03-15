@@ -375,42 +375,11 @@ function getStockBadgeClass(stock) {
 }
 
 
-function normalizeImageUrls(rawValue) {
-    if (Array.isArray(rawValue)) {
-        return rawValue.filter(Boolean).slice(0, 5);
+function getProductImages(product) {
+    if (Array.isArray(product?.product_image_urls) && product.product_image_urls.length > 0) {
+        return product.product_image_urls.filter(Boolean).slice(0, 5);
     }
-
-    if (typeof rawValue === 'string') {
-        const trimmed = rawValue.trim();
-        if (!trimmed) return [];
-
-        const parseCandidates = [trimmed];
-        if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
-            parseCandidates.push(trimmed.slice(1, -1));
-        }
-
-        for (const candidate of parseCandidates) {
-            if (!candidate) continue;
-            if (candidate.startsWith('[')) {
-                try {
-                    const parsed = JSON.parse(candidate);
-                    if (Array.isArray(parsed)) {
-                        return parsed.filter(Boolean).slice(0, 5);
-                    }
-                } catch (error) {
-                    // keep trying fallbacks
-                }
-            }
-        }
-
-        if (trimmed.includes(',')) {
-            const splitValues = trimmed.split(',').map((value) => value.trim()).filter(Boolean);
-            if (splitValues.length > 1) return splitValues.slice(0, 5);
-        }
-
-        return [trimmed].slice(0, 5);
-    }
-
+    if (product?.product_image_url) return [product.product_image_url].slice(0, 5);
     return [];
 }
 
