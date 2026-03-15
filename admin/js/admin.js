@@ -417,9 +417,16 @@ async function uploadProductImages(imageFiles = []) {
 }
 
 function combineProductImages(existingImages = [], newlyUploadedImages = []) {
-    const merged = [...existingImages, ...newlyUploadedImages].filter(Boolean);
-    const deduped = [...new Set(merged)];
-    return deduped.slice(0, 5);
+    const cleanExisting = [...new Set((existingImages || []).filter(Boolean))];
+    const cleanNew = [...new Set((newlyUploadedImages || []).filter(Boolean))];
+
+    if (cleanNew.length === 0) {
+        return cleanExisting.slice(0, 5);
+    }
+
+    // Keep newest uploads visible: when total exceeds 5, drop oldest existing images first.
+    const merged = [...cleanExisting, ...cleanNew];
+    return [...new Set(merged)].slice(-5);
 }
 
 

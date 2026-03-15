@@ -250,11 +250,34 @@ function initScrollReveal() {
 }
 
 
+function getProductImageList(product) {
+    let imageList = [];
+
+    if (Array.isArray(product?.product_image_urls)) {
+        imageList = product.product_image_urls.filter(Boolean);
+    } else if (typeof product?.product_image_urls === 'string') {
+        const raw = product.product_image_urls.trim();
+        if (raw.startsWith('[')) {
+            try {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed)) imageList = parsed.filter(Boolean);
+            } catch (error) {
+                imageList = raw ? [raw] : [];
+            }
+        } else if (raw) {
+            imageList = [raw];
+        }
+    }
+
+    if (imageList.length === 0 && product?.product_image_url) {
+        imageList = [product.product_image_url];
+    }
+
+    return imageList.slice(0, 5);
+}
+
 function getProductPrimaryImage(product) {
-    const imageList = Array.isArray(product?.product_image_urls)
-        ? product.product_image_urls.filter(Boolean)
-        : [];
-    return imageList[0] || product.product_image_url || 'assets/images/placeholder.svg';
+    return getProductImageList(product)[0] || 'assets/images/placeholder.svg';
 }
 
 function getProductDetailsUrl(productId) {
@@ -269,6 +292,7 @@ function createProductCard(product) {
     const discount = calculateDiscount(product.main_price, product.discount_price);
     const finalPrice = product.discount_price || product.main_price;
     const hasColors = product.colour_options && product.colour_options.length > 0;
+    const productImages = getProductImageList(product);
     
     return `
         <div class="product-card" data-id="${product.id}">
@@ -287,6 +311,14 @@ function createProductCard(product) {
                             <span class="color-dot" style="background-color: ${color};" title="${getColorName(color)}"></span>
                         `).join('')}
                         ${product.colour_options.length > 4 ? `<span class="color-dot" style="background: linear-gradient(45deg, #ccc, #fff);">+</span>` : ''}
+                    </div>
+                ` : ''}
+
+                ${productImages.length > 1 ? `
+                    <div style="display:flex; gap:6px; padding:8px; justify-content:center; flex-wrap:wrap; background: rgba(255,255,255,0.92); border-top:1px solid rgba(0,0,0,0.05);">
+                        ${productImages.slice(0, 5).map((img, index) => `
+                            <img src="${img}" alt="${product.product_name} ${index + 1}" style="width:34px; height:34px; border-radius:6px; object-fit:cover; border:1px solid #e5e7eb;" onerror="this.style.display='none'">
+                        `).join('')}
                     </div>
                 ` : ''}
             </div>
